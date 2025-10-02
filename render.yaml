@@ -1,13 +1,14 @@
-﻿# ---------- render.yaml (Blueprint) ----------
-services:
+﻿services:
   - type: web
     name: kalix-erp
-    env: docker
+    runtime: docker # (reemplaza env: docker)
     plan: free
-    autoDeploy: true
     rootDir: .
-    # Render detecta Dockerfile automáticamente
+    # pre-deploy: correr migraciones en el deploy (sin prompt)
+    preDeployCommand: php artisan migrate --force
     envVars:
+      - key: APP_KEY
+        generateValue: true # Render genera un secreto aleatorio
       - key: APP_ENV
         value: production
       - key: APP_DEBUG
@@ -20,8 +21,6 @@ services:
         fromDatabase:
           name: kalix-db
           property: connectionString
-    postDeployCommand: |
-      php artisan migrate --force
 
 databases:
   - name: kalix-db
