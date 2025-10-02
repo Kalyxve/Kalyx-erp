@@ -1,0 +1,28 @@
+﻿# ---------- Nginx template (PORT llega por env) ----------
+server {
+    listen ;
+    server_name _;
+
+    root /var/www/html/public;
+    index index.php index.html;
+
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log;
+
+    location / {
+        try_files \ \/ /index.php?\;
+    }
+
+    location ~ \.php\$ {
+        include fastcgi_params;
+        fastcgi_pass 127.0.0.1:9000;
+        fastcgi_param SCRIPT_FILENAME \\;
+        fastcgi_param PATH_INFO \;
+    }
+
+    location ~* \.(jpg|jpeg|png|gif|ico|css|js|svg|woff|woff2|ttf)\$ {
+        expires 30d;
+        add_header Cache-Control "public";
+        access_log off;
+    }
+}

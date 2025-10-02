@@ -1,0 +1,9 @@
+﻿# ---------- .dockerignore ----------
+.git
+node_modules
+vendor/bin
+storage/logs/*.log
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+.env
