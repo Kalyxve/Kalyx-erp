@@ -4,8 +4,6 @@
     runtime: docker
     plan: free
     rootDir: .
-    startCommand: |
-      php artisan migrate --force && supervisord -c /etc/supervisor/conf.d/supervisord.conf
     envVars:
       - key: APP_KEY
         generateValue: true

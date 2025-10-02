@@ -2,17 +2,17 @@
 # Stage 1: vendor (Composer)
 FROM composer:2 AS vendor
 WORKDIR /app
-COPY composer.json composer.lock ./
+COPY composer.json composer.lock ./ 
 RUN composer install --no-dev --no-interaction --prefer-dist --no-ansi --no-progress
 
 # Stage 2: frontend (Vite)
 FROM node:20 AS frontend
 WORKDIR /app
-COPY package.json package-lock.json* ./
+COPY package.json package-lock.json* ./ 
 RUN npm ci
 COPY resources/ resources/
 COPY public/ public/
-COPY vite.config.* ./
+COPY vite.config.* ./ 
 RUN npm run build
 
 # Stage 3: runtime (PHP-FPM + Nginx + Supervisor)

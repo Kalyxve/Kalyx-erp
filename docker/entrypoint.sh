@@ -1,15 +1,42 @@
-﻿#!/usr/bin/env bash
+﻿#!/bin/sh
 set -e
 
-# Render inyecta \. Lo metemos en la plantilla de Nginx.
-envsubst '\' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
+echo "🚀 Iniciando contenedor Laravel en Render..."
 
-# Permisos y caches seguros
-chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache || true
-chmod -R ug+rwX /var/www/html/storage /var/www/html/bootstrap/cache || true
+# Esperar a que la base de datos esté lista
+echo "⏳ Esperando a que Postgres esté disponible..."
+until php -r "
+try {
+    new PDO(getenv('DB_CONNECTION').':host='.parse_url(getenv('DATABASE_URL'), PHP_URL_HOST).';dbname='.ltrim(parse_url(getenv('DATABASE_URL'), PHP_URL_PATH), '/'),
+            parse_url(getenv('DATABASE_URL'), PHP_URL_USER),
+            parse_url(getenv('DATABASE_URL'), PHP_URL_PASS));
+    exit(0);
+} catch (Exception \$e) {
+    exit(1);
+}" >/dev/null 2>&1; do
+  sleep 2
+done
 
-php artisan config:cache || true
-php artisan route:cache || true
-php artisan view:cache || true
+echo "✅ Base de datos disponible."
 
-exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
+# Generar APP_KEY si no existe
+if [ -z "$(php artisan key:generate --show 2>/dev/null)" ]; then
+  echo "🔑 Generando APP_KEY..."
+  php artisan key:generate --force
+fi
+
+# Ejecutar migraciones
+echo "📂 Ejecutando migraciones..."
+php artisan migrate --force
+
+# Limpiar caches
+echo "🧹 Limpiando caches de Laravel..."
+php artisan config:clear
+php artisan route:clear
+php artisan cache:clear
+php artisan view:clear
+
+echo "✅ App lista, levantando Nginx + PHP-FPM"
+
+# Lanzar supervisord (mantiene Nginx y PHP-FPM corriendo)
+exec supervisord -c /etc/supervisor/conf.d/supervisord.conf
