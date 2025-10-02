@@ -1,14 +1,14 @@
 ﻿services:
   - type: web
     name: kalix-erp
-    runtime: docker # (reemplaza env: docker)
+    runtime: docker
     plan: free
     rootDir: .
-    # pre-deploy: correr migraciones en el deploy (sin prompt)
-    preDeployCommand: php artisan migrate --force
+    startCommand: |
+      php artisan migrate --force && supervisord -c /etc/supervisor/conf.d/supervisord.conf
     envVars:
       - key: APP_KEY
-        generateValue: true # Render genera un secreto aleatorio
+        generateValue: true
       - key: APP_ENV
         value: production
       - key: APP_DEBUG
