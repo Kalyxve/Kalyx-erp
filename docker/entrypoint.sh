@@ -3,40 +3,27 @@ set -e
 
 echo "🚀 Iniciando contenedor Laravel en Render..."
 
-# Esperar a que la base de datos esté lista
-echo "⏳ Esperando a que Postgres esté disponible..."
-until php -r "
-try {
-    new PDO(getenv('DB_CONNECTION').':host='.parse_url(getenv('DATABASE_URL'), PHP_URL_HOST).';dbname='.ltrim(parse_url(getenv('DATABASE_URL'), PHP_URL_PATH), '/'),
-            parse_url(getenv('DATABASE_URL'), PHP_URL_USER),
-            parse_url(getenv('DATABASE_URL'), PHP_URL_PASS));
-    exit(0);
-} catch (Exception \$e) {
-    exit(1);
-}" >/dev/null 2>&1; do
-  sleep 2
+# 1) Renderiza el server block de Nginx con el PORT dinámico
+#    (necesario o Nginx no sabrá en qué puerto escuchar)
+envsubst '$PORT' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
+
+# 2) Compila caches (si falla, no abortar el arranque)
+php artisan config:cache || true
+php artisan route:cache  || true
+php artisan view:cache   || true
+
+# 3) Migraciones con reintentos limitados (evita bucles infinitos)
+echo "📂 Ejecutando migraciones..."
+ATTEMPTS=0
+until php artisan migrate --force; do
+  ATTEMPTS=$((ATTEMPTS+1))
+  if [ $ATTEMPTS -ge 5 ]; then
+    echo "⚠️  Migraciones no aplicaron tras $ATTEMPTS intentos. Continuando para no bloquear el deploy."
+    break
+  fi
+  echo "⏳ Reintentando migraciones en 5s (intento $ATTEMPTS/5)..."
+  sleep 5
 done
 
-echo "✅ Base de datos disponible."
-
-# Generar APP_KEY si no existe
-if [ -z "$(php artisan key:generate --show 2>/dev/null)" ]; then
-  echo "🔑 Generando APP_KEY..."
-  php artisan key:generate --force
-fi
-
-# Ejecutar migraciones
-echo "📂 Ejecutando migraciones..."
-php artisan migrate --force
-
-# Limpiar caches
-echo "🧹 Limpiando caches de Laravel..."
-php artisan config:clear
-php artisan route:clear
-php artisan cache:clear
-php artisan view:clear
-
-echo "✅ App lista, levantando Nginx + PHP-FPM"
-
-# Lanzar supervisord (mantiene Nginx y PHP-FPM corriendo)
-exec supervisord -c /etc/supervisor/conf.d/supervisord.conf
+echo "✅ App lista, levantando Nginx + PHP-FPM..."
+exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
