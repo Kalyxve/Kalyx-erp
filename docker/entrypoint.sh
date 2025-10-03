@@ -3,11 +3,15 @@ set -e
 
 echo "🚀 Iniciando contenedor Laravel en Render..."
 
-# 1) Renderiza el server block de Nginx con el PORT dinámico
-#    (necesario o Nginx no sabrá en qué puerto escuchar)
-envsubst '$PORT' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
+# 1) Generar el server block de Nginx con el puerto dinámico de Render
+if command -v envsubst >/dev/null 2>&1; then
+  envsubst '$PORT' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
+else
+  # Fallback por si falta envsubst (defensivo)
+  sed "s|\${PORT}|${PORT}|g" /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
+fi
 
-# 2) Compila caches (si falla, no abortar el arranque)
+# 2) Caches (si falla algo, no bloquea el arranque)
 php artisan config:cache || true
 php artisan route:cache  || true
 php artisan view:cache   || true

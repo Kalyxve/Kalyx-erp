@@ -2,27 +2,28 @@
 # Stage 1: vendor (Composer)
 FROM composer:2 AS vendor
 WORKDIR /app
-COPY composer.json composer.lock ./ 
+COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-interaction --prefer-dist --no-ansi --no-progress
 
 # Stage 2: frontend (Vite)
 FROM node:20 AS frontend
 WORKDIR /app
-COPY package.json package-lock.json* ./ 
+COPY package.json package-lock.json* ./
 RUN npm ci
 COPY resources/ resources/
 COPY public/ public/
-COPY vite.config.* ./ 
+COPY vite.config.* ./
 RUN npm run build
 
 # Stage 3: runtime (PHP-FPM + Nginx + Supervisor)
 FROM php:8.3-fpm-bullseye
 
 # Paquetes del sistema + extensiones PHP
+# (agregamos gettext-base para usar envsubst)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    nginx supervisor git unzip libpq-dev libzip-dev libicu-dev \
-    && docker-php-ext-install pdo_pgsql intl bcmath opcache \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    nginx supervisor git unzip gettext-base libpq-dev libzip-dev libicu-dev \
+ && docker-php-ext-install pdo_pgsql intl bcmath opcache \
+ && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /var/www/html
 
