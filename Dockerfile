@@ -1,6 +1,7 @@
 ﻿# ---------- Dockerfile multi-stage para Render ----------
 # Stage 1: vendor (Composer)
 FROM composer:2 AS vendor
+ENV COMPOSER_ALLOW_SUPERUSER=1
 WORKDIR /app
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-interaction --prefer-dist --no-ansi --no-progress
@@ -9,17 +10,19 @@ RUN composer install --no-dev --no-interaction --prefer-dist --no-ansi --no-prog
 FROM node:20 AS frontend
 WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN npm ci
+# Si falla con "npm ci" por ausencia de package-lock, usa npm install:
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 COPY resources/ resources/
 COPY public/ public/
-COPY vite.config.* ./
+# 👇 Evita fallo de "COPY vite.config.*: not found" en algunos contextos
+COPY vite.config.js ./
 RUN npm run build
 
 # Stage 3: runtime (PHP-FPM + Nginx + Supervisor)
 FROM php:8.3-fpm-bullseye
 
 # Paquetes del sistema + extensiones PHP
-# (agregamos gettext-base para usar envsubst)
+# (incluye gettext-base para 'envsubst')
 RUN apt-get update && apt-get install -y --no-install-recommends \
     nginx supervisor git unzip gettext-base libpq-dev libzip-dev libicu-dev \
  && docker-php-ext-install pdo_pgsql intl bcmath opcache \
