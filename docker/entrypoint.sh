@@ -1,8 +1,8 @@
 ﻿#!/bin/sh
 set -e
 
-# Render inyecta $PORT. Lo metemos en la plantilla de Nginx.
-envsubst '$PORT' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
+# Render inyecta \. Lo metemos en la plantilla de Nginx.
+envsubst '\' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
 
 # Permisos y caches seguros
 chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache || true
